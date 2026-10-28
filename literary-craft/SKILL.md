@@ -8,7 +8,7 @@ description: >
   以及一个只做提示、不打分的表层体检脚本。不覆盖公文、学术论文、商业文案与代码文档。
 license: MIT
 agent_created: true
-version: "0.1.2"
+version: "0.1.3"
 ---
 
 # Literary Craft · 让文字值得读下去

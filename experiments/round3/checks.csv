@@ -1,0 +1,13 @@
+﻿sid,arm,chars,range,length_ok,min_ok,max_ok,hard_fail,hard_pass,must_keep,missing,must_not,bad,numbers
+C1,A,1093,1000-1300,True,True,True,,True,,,,,
+C1,B,1060,1000-1300,True,True,True,,True,,,,,
+C2,A,1064,1000-1300,True,True,True,,True,,,,,
+C2,B,1039,1000-1300,True,True,True,,True,,,,,
+H1,A,928,900-1100,True,True,True,,True,3/3,,0/3,,
+H1,B,1072,900-1100,True,True,True,,True,3/3,,0/3,,
+H2,A,1217,1200-1500,True,True,True,,True,,,,,0
+H2,B,1202,1200-1500,True,True,True,,True,,,,,0
+P1,A,565,550-750,True,True,True,,True,17/17,,0/5,,
+P1,B,552,550-750,True,True,True,,True,17/17,,0/5,,
+P2,A,509,500-700,True,True,True,,True,15/15,,0/0,,
+P2,B,500,500-700,True,True,True,,True,15/15,,0/0,,

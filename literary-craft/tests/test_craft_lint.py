@@ -51,6 +51,16 @@ class TestParsing(unittest.TestCase):
         n = cl.dialogue_chars("「今天走吗。」他说。「不走。」")
         self.assertEqual(n, 6)
 
+    def test_dialogue_chars_mixed_quotes(self):
+        # 中文引号 4 字 + 半角引号 2 字，不能漏也不能重复
+        n = cl.dialogue_chars('「今天走吗。」他说："不走。"')
+        self.assertEqual(n, 6)
+
+    def test_dialogue_chars_mixed_nested(self):
+        # 半角引号出现在中文引号内部时，只算一次
+        n = cl.dialogue_chars('「他说"不走"。」')
+        self.assertEqual(n, 4)
+
     def test_dialogue_chars_ascii_quotes(self):
         n = cl.dialogue_chars('"今天走吗。"他说。"不走。"')
         self.assertEqual(n, 6)
@@ -129,6 +139,10 @@ class TestFlags(unittest.TestCase):
     def test_raw_quote_flag(self):
         text = '"今天走吗。"他说。"不走。"他把伞收了，走进雨里，没有回头。'
         self.assertIn("RAW_QUOTE", codes(text))
+
+    def test_mixed_quote_flag(self):
+        text = '「今天走吗。」他说："不走。"他把伞收了，走进雨里，没有回头。'
+        self.assertIn("MIXED_QUOTE", codes(text))
 
     def test_no_raw_quote_when_chinese_quotes(self):
         text = "「今天走吗。」他说。「不走。」他把伞收了，走进雨里，没有回头。"

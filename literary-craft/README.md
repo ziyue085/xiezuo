@@ -1,6 +1,6 @@
 # literary-craft
 
-中文文学写作与编辑 skill。给 WorkBuddy / Codex 这类 agent 用。v0.1.2。
+中文文学写作与编辑 skill。给 WorkBuddy / Codex 这类 agent 用。v0.1.3。
 
 它解决的不是"句子好不好看"，而是**读者为什么还要读下一段**。
 
@@ -9,12 +9,12 @@
 ## 安装（WorkBuddy，一行）
 
 ```bash
-d=$(mktemp -d) && { git clone --depth 1 https://github.com/ziyue085/xiezuo.git "$d/repo" 2>/dev/null || git clone --depth 1 git@github-ziyue085:ziyue085/xiezuo.git "$d/repo"; } && rm -rf ~/.workbuddy/skills/literary-craft && mkdir -p ~/.workbuddy/skills && cp -r "$d/repo/literary-craft" ~/.workbuddy/skills/ && rm -rf "$d"
+d=$(mktemp -d) && { git clone --depth 1 https://github.com/ziyue085/xiezuo.git "$d/repo" 2>/dev/null || git clone --depth 1 git@github-ziyue085:ziyue085/xiezuo.git "$d/repo"; } && bash "$d/repo/install.sh" "$d/repo"; rm -rf "$d"
 ```
 
 装完重启会话，说"用 literary-craft 写个短篇"即可。
 
-已实测：克隆成功、落盘 140 KB、重复执行会覆盖旧版本（不会嵌套）；克隆失败则整条中断，不会用旧目录凑合。
+安装脚本：暂存 → 校验 → 备份旧版 → 替换，失败自动回滚。已实测四种情况：首装、重装（不嵌套）、校验失败（旧版保留）、备份后故障（回滚成功）。
 没有 `github-ziyue085` 别名时，把第二段换成 `git@github.com:ziyue085/xiezuo.git`。
 
 ### Skills CLI（Claude Code / Cursor 等）
@@ -62,7 +62,7 @@ Codex 用户：把 `literary-craft/` 目录放进 skills 目录即可；只依�
 
 ---
 
-## 优先级（v0.1.2 改）
+## 优先级
 
 1. 用户明确要求（字数、视角、不许写什么、必须保留什么）
 2. 事实与人物一致性
@@ -105,17 +105,18 @@ python scripts/craft_lint.py --file draft.txt --mode history --era ancient
 ## 测试
 
 ```bash
-python -m unittest discover -s tests -v      # 30 项回归测试
+python -m unittest discover -s tests -v      # 33 项回归测试
 ```
 
-两轮对照实验见 `../docs/RESULTS.md` 与 `../docs/ROUND2.md`。
+三轮对照实验见 `../docs/RESULTS.md`、`../docs/ROUND2.md`、`../docs/ROUND3.md`。
 
 ---
 
 ## 已知限制
 
-- **幽默是稳定失败点**：两次独立测试都判它"把喜剧写成温情"（第二轮 0–3）。
-- **约束遵守不稳定**：57%→58%，接近随机；会写长、加戏、在润色时改文体。
+- **幽默**：前两轮都判它"把喜剧写成温情"（第二轮 0–3）；第三轮两个新场景未复现（1 个 2–0、1 个 1–1），**不能算修好**。
+- **事实准确性是短板**：第三轮事实与内部一致性 B 4–7 落后于裸写；写得更具体，也更容易出错。
+- **约束遵守**：57%→58%，接近随机；会写长、加戏、在润色时改文体。
 - 只管场景级，不管卷级；三章连续写作只做过一次 1–1 的探索性测试，无结论。
 - 没有人类读者数据。所有评价来自模型评审。
 - 文件里的数字（如"新增不超过一成半"）都是启发值，不是验收线。
@@ -129,7 +130,7 @@ literary-craft/
 ├── SKILL.md
 ├── references/            7 份按需加载的参考
 ├── scripts/craft_lint.py  表层体检
-├── tests/                 30 项回归测试 + 两套场景
+├── tests/                 33 项回归测试 + 三套场景
 ├── README.md
 └── CHANGELOG.md
 ```

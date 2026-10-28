@@ -120,13 +120,17 @@ def cjk_len(s: str) -> int:
 
 
 def dialogue_chars(text: str) -> int:
-    """对话字符数。除中文引号外，也统计英文直引号成对出现的情况——
-    模型输出常把 "…" 写成半角，若不统计会误判为"没有对话"。"""
+    """对话字符数：中文引号 + 半角引号，混用时也各算一次、不重不漏。
+
+    做法：先取出中文引号内的内容并从文本中删除，再在剩余文本里找成对的半角引号。
+    这样"「甲」说："乙""里的两段都会被统计，也不会把中文引号里的半角引号算两遍。
+    """
     total = 0
+    rest = text
     for pat in (r"“([^”]*)”", r"「([^」]*)」"):
-        total += sum(cjk_len(m) for m in re.findall(pat, text))
-    if not re.search(r"[“”「」]", text):
-        total += sum(cjk_len(m) for m in re.findall(r'"([^"]*)"', text))
+        total += sum(cjk_len(m) for m in re.findall(pat, rest))
+        rest = re.sub(pat, "", rest)
+    total += sum(cjk_len(m) for m in re.findall(r'"([^"]*)"', rest))
     return total
 
 
@@ -329,6 +333,10 @@ def analyze(text: str, mode: str = "generic", era: str = "") -> dict:
         flag("RAW_QUOTE",
              f"全文使用英文直引号（{text.count(chr(34))} 个），没有中文引号",
              "中文正文里换成「」或“”；对话多的文本尤其显眼。这条不影响内容，只影响排版。")
+    elif text.count('"') >= 2 and re.search(r"[“”「」]", text):
+        flag("MIXED_QUOTE",
+             "中文引号与英文直引号混用",
+             "统一成中文引号；混用通常是分段生成拼接留下的痕迹。")
 
     if mode == "fiction" and m["chars"] >= 300 and m["dialogue_pct"] < 3:
         flag("NO_DIALOGUE",
