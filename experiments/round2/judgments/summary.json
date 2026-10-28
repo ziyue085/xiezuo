@@ -1,0 +1,63 @@
+{
+  "overall": {
+    "B": 16,
+    "A": 5
+  },
+  "dims": {
+    "appeal": {
+      "B": 14,
+      "A": 7
+    },
+    "language": {
+      "B": 14,
+      "A": 7
+    },
+    "consistency": {
+      "B": 15,
+      "A": 5,
+      "TIE": 1
+    },
+    "compliance": {
+      "B": 11,
+      "A": 8,
+      "TIE": 2
+    }
+  },
+  "per_scene": {
+    "R01": {
+      "judgeR1": "B",
+      "judgeR2": "A",
+      "judgeR3": "B"
+    },
+    "R02": {
+      "judgeR1": "B",
+      "judgeR2": "B",
+      "judgeR3": "B"
+    },
+    "R03": {
+      "judgeR1": "B",
+      "judgeR2": "B",
+      "judgeR3": "B"
+    },
+    "R04": {
+      "judgeR1": "B",
+      "judgeR2": "B",
+      "judgeR3": "B"
+    },
+    "R05": {
+      "judgeR1": "A",
+      "judgeR2": "A",
+      "judgeR3": "A"
+    },
+    "R06": {
+      "judgeR1": "B",
+      "judgeR2": "B",
+      "judgeR3": "B"
+    },
+    "R07": {
+      "judgeR1": "B",
+      "judgeR2": "A",
+      "judgeR3": "B"
+    }
+  }
+}

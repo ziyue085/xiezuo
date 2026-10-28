@@ -1,0 +1,15 @@
+﻿arm,bad_words,chars,length_ok,max_chars_ok,min_chars_ok,min_numbers_ok,missing,must_keep,must_not_hit,numbers,sid,words_hi,words_lo
+A,,1054,True,True,True,True,,,,26,R01,1200,1000
+B,,1088,True,True,True,True,,,,16,R01,1200,1000
+A,,1136,True,True,True,,,,,,R02,1200,1000
+B,,1126,True,True,True,,,,,,R02,1200,1000
+A,,1140,True,True,True,,,,0/2,,R03,1200,1000
+B,,1191,True,True,True,,,,0/2,,R03,1200,1000
+A,,895,True,True,True,,,,0/2,,R04,1000,800
+B,,851,True,True,True,,,,0/2,,R04,1000,800
+A,,1056,True,True,True,,,,,,R05,1200,1000
+B,,1095,True,True,True,,,,,,R05,1200,1000
+A,,1006,True,True,True,True,,,,29,R06,1200,1000
+B,,1132,True,True,True,True,,,,28,R06,1200,1000
+A,,555,True,True,True,,,5/5,0/0,,R07,750,550
+B,,584,True,True,True,,,5/5,0/0,,R07,750,550

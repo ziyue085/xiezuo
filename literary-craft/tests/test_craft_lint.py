@@ -51,6 +51,10 @@ class TestParsing(unittest.TestCase):
         n = cl.dialogue_chars("「今天走吗。」他说。「不走。」")
         self.assertEqual(n, 6)
 
+    def test_dialogue_chars_ascii_quotes(self):
+        n = cl.dialogue_chars('"今天走吗。"他说。"不走。"')
+        self.assertEqual(n, 6)
+
     def test_dialogue_chars_curly_quotes(self):
         n = cl.dialogue_chars("“今天走吗。”他说。“不走。”")
         self.assertEqual(n, 6)
@@ -121,6 +125,14 @@ class TestFlags(unittest.TestCase):
     def test_abstract_heavy(self):
         text = ("时代的命运与个人的价值，构成了精神的意义与灵魂的本质。" * 4)
         self.assertIn("ABSTRACT_HEAVY", codes(text))
+
+    def test_raw_quote_flag(self):
+        text = '"今天走吗。"他说。"不走。"他把伞收了，走进雨里，没有回头。'
+        self.assertIn("RAW_QUOTE", codes(text))
+
+    def test_no_raw_quote_when_chinese_quotes(self):
+        text = "「今天走吗。」他说。「不走。」他把伞收了，走进雨里，没有回头。"
+        self.assertNotIn("RAW_QUOTE", codes(text))
 
     def test_fiction_no_dialogue(self):
         text = "他在路上走了很久，看见路边的树和远处的房子，心里想着昨天的事情。" * 12

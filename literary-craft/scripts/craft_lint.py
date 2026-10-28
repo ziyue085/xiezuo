@@ -120,9 +120,13 @@ def cjk_len(s: str) -> int:
 
 
 def dialogue_chars(text: str) -> int:
+    """对话字符数。除中文引号外，也统计英文直引号成对出现的情况——
+    模型输出常把 "…" 写成半角，若不统计会误判为"没有对话"。"""
     total = 0
     for pat in (r"“([^”]*)”", r"「([^」]*)」"):
         total += sum(cjk_len(m) for m in re.findall(pat, text))
+    if not re.search(r"[“”「」]", text):
+        total += sum(cjk_len(m) for m in re.findall(r'"([^"]*)"', text))
     return total
 
 
@@ -320,6 +324,11 @@ def analyze(text: str, mode: str = "generic", era: str = "") -> dict:
         flag("ABSTRACT_HEAVY",
              f"抽象化后缀 {n_abstract} 次（{m['abstract_per_k']}/千字）",
              "抽象名词密集时，句子容易变成议论。让具体的人做主语。")
+
+    if text.count('"') >= 2 and not re.search(r"[“”「」]", text):
+        flag("RAW_QUOTE",
+             f"全文使用英文直引号（{text.count(chr(34))} 个），没有中文引号",
+             "中文正文里换成「」或“”；对话多的文本尤其显眼。这条不影响内容，只影响排版。")
 
     if mode == "fiction" and m["chars"] >= 300 and m["dialogue_pct"] < 3:
         flag("NO_DIALOGUE",

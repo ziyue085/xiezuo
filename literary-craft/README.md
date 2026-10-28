@@ -1,21 +1,31 @@
 # literary-craft
 
-中文文学写作与编辑 skill。给 WorkBuddy / Codex 这类 agent 用。
+中文文学写作与编辑 skill。给 WorkBuddy / Codex 这类 agent 用。v0.1.2。
 
 它解决的不是"句子好不好看"，而是**读者为什么还要读下一段**。
 
 ---
 
-## 安装（一行）
+## 安装（WorkBuddy，一行）
 
 ```bash
-git clone --depth 1 https://github.com/ziyue085/xiezuo.git /tmp/xiezuo 2>/dev/null || git clone --depth 1 git@github-ziyue085:ziyue085/xiezuo.git /tmp/xiezuo; mkdir -p ~/.workbuddy/skills && cp -r /tmp/xiezuo/literary-craft ~/.workbuddy/skills/ && rm -rf /tmp/xiezuo
+d=$(mktemp -d) && { git clone --depth 1 https://github.com/ziyue085/xiezuo.git "$d/repo" 2>/dev/null || git clone --depth 1 git@github-ziyue085:ziyue085/xiezuo.git "$d/repo"; } && rm -rf ~/.workbuddy/skills/literary-craft && mkdir -p ~/.workbuddy/skills && cp -r "$d/repo/literary-craft" ~/.workbuddy/skills/ && rm -rf "$d"
 ```
 
-装完重启会话，说"用 literary-craft 写个短篇"即可触发。
+装完重启会话，说"用 literary-craft 写个短篇"即可。
 
-> 已在 Windows Git Bash 实测：HTTPS 不通时自动回退到 SSH。没有 `github-ziyue085` 别名的话，把 `git@github-ziyue085:` 换成 `git@github.com:`。
-> Codex 用户：把 `literary-craft/` 整个目录放到你的 skills 目录（如 `~/.codex/skills/`）。本包只依赖 `SKILL.md` + Markdown + 一个 stdlib Python 脚本。
+已实测：克隆成功、落盘 140 KB、重复执行会覆盖旧版本（不会嵌套）；克隆失败则整条中断，不会用旧目录凑合。
+没有 `github-ziyue085` 别名时，把第二段换成 `git@github.com:ziyue085/xiezuo.git`。
+
+### Skills CLI（Claude Code / Cursor 等）
+
+```bash
+npx skills add ziyue085/xiezuo --skill literary-craft -g -y
+```
+
+如实说明：该 CLI 面向它支持的 agent，**WorkBuddy 不在其中**（不会装到 `~/.workbuddy/skills`）。本机两次尝试都因网络/认证失败，**未端到端验证**。
+
+Codex 用户：把 `literary-craft/` 目录放进 skills 目录即可；只依赖 `SKILL.md` + Markdown + 一个 stdlib Python 脚本。
 
 ---
 
@@ -32,21 +42,34 @@ git clone --depth 1 https://github.com/ziyue085/xiezuo.git /tmp/xiezuo 2>/dev/nu
 语言层面的具体毛病 → `references/anti-patterns.md`（15 组病灶图鉴）
 节奏与句式 → `references/rhythm.md`
 
-**渐进式加载**：常驻的只有 `SKILL.md`（约 2.5k tokens），按路由最多再读 2 份参考，峰值约 8k。
+**渐进式加载**：常驻的只有 `SKILL.md`（约 2.6k tokens），按路由最多再读 2 份参考，峰值约 8k。
 
 ---
 
 ## 核心模型：落差
 
-读者继续读，是因为有一个**尚未闭合的落差**，而且他知道这个落差值得等。
+读者继续读，多数时候是因为有一个**尚未闭合的落差**，而且他知道这个落差值得等。
 
 - 信息落差：有件事我还不知道
 - 欲望落差：有人想要一样具体的东西，可能得不到
 - 认知落差：我对这件事的理解，和文本要给的解释之间有空缺
 
-判断一段该不该留，只需一句：**删掉它，读者会不会少等一件事？**
+判断一段该不该留，通常只需一句：**删掉它，读者会不会少等一件事？**
 
-配套三条硬约束：细节必须承重、情绪有四条通道（命名 < 身体 < 动作偏差 < 注意力错位）、因果不是顺序（场景结束必须有状态变化）。
+配套三条约束：细节最好承重、情绪有四条通道（命名 < 身体 < 动作偏差 < 注意力错位）、因果通常比顺序重要。
+
+**但这些都不是配额。** 过渡段、气氛段、必要的信息交代，可以什么都不"制造"。
+
+---
+
+## 优先级（v0.1.2 改）
+
+1. 用户明确要求（字数、视角、不许写什么、必须保留什么）
+2. 事实与人物一致性
+3. 阅读体验
+4. 具体技巧
+
+三条红线：不为吸引读者牺牲事实；不篡改原文（事实/视角/体裁）；不改变题材去迎合"更好看"。
 
 ---
 
@@ -73,29 +96,29 @@ python scripts/craft_lint.py --file draft.txt --mode history --era ancient
 
 退出码：`0` 无提示 / `1` 有提示（需人工判断）/ `2` 参数或文件错误。
 
-它能测：句长分布、段长分布、对话占比、情绪命名密度、套话密度、解释性标记、三连排比、"不是A而是B"、抽象名词密度、四字片段重复、时代错置词。
+能测：句长分布、段长分布、对话占比、情绪命名密度、套话密度、解释性标记、三连排比、"不是A而是B"、抽象名词密度、四字片段重复、时代错置词、英文直引号。
 
-它**不能**测：写得好不好、像不像人写的、结构有没有问题。
+**不能**测：写得好不好、像不像人写的、结构有没有问题。
 
 ---
 
 ## 测试
 
 ```bash
-cd literary-craft
-python -m unittest discover -s tests -v      # 27 项回归测试
+python -m unittest discover -s tests -v      # 30 项回归测试
 ```
 
-10 个原创场景与对照实验结果见 `../docs/RESULTS.md`。
+两轮对照实验见 `../docs/RESULTS.md` 与 `../docs/ROUND2.md`。
 
 ---
 
 ## 已知限制
 
-- 会倾向于"设计过的克制"：把冲突推向沉默、结尾用回环或定格。这在离别、幽默、现实主义题材上会失分（实测 3 个场景打成 2–2）。
-- 约束遵守不稳定：实测"题材与约束契合"维度只有 57% 胜率，有写长、加戏的倾向。
-- 只管场景级，不管卷级；只测过 1000–1800 字的短篇。
+- **幽默是稳定失败点**：两次独立测试都判它"把喜剧写成温情"（第二轮 0–3）。
+- **约束遵守不稳定**：57%→58%，接近随机；会写长、加戏、在润色时改文体。
+- 只管场景级，不管卷级；三章连续写作只做过一次 1–1 的探索性测试，无结论。
 - 没有人类读者数据。所有评价来自模型评审。
+- 文件里的数字（如"新增不超过一成半"）都是启发值，不是验收线。
 
 ---
 
@@ -106,7 +129,7 @@ literary-craft/
 ├── SKILL.md
 ├── references/            7 份按需加载的参考
 ├── scripts/craft_lint.py  表层体检
-├── tests/                 回归测试 + 10 个场景
+├── tests/                 30 项回归测试 + 两套场景
 ├── README.md
 └── CHANGELOG.md
 ```
