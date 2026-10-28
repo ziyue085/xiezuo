@@ -108,6 +108,26 @@ def main() -> None:
         "per_scene": per_scene,
         "pairwise_agreement": f"{agree_same}/{agree_pairs}",
     }
+    # 探索性重测：v0.1.1 只重写 S01/S06/S07（B2），A 不变
+    retest = []
+    for name, fname, kd in (("judge5", "judge5.jsonl", "blind3"),
+                            ("judge6", "judge6.jsonl", "blind4")):
+        rows = {r["sid"]: r for r in load(JDIR / fname)}
+        k = json.loads((EXP / kd / "key.json").read_text(encoding="utf-8"))
+        for sid in ("S01", "S06", "S07"):
+            r = rows.get(sid)
+            if r:
+                retest.append({"judge": name, "sid": sid,
+                               "winner": decode(r["overall"], k[sid])})
+    if retest:
+        lines += ["", "## 探索性重测（v0.1.1，仅 3 个失败场景，B2 vs A）", "",
+                  "| 场景 | judge5（blind3） | judge6（blind4·换位） |", "|---|---|---|"]
+        for sid in ("S01", "S06", "S07"):
+            v = {r["judge"]: r["winner"] for r in retest if r["sid"] == sid}
+            lines.append(f"| {sid} | {v.get('judge5','NA')} | {v.get('judge6','NA')} |")
+        lines += ["", "修复是看到第一轮结果之后做的，样本 3 个场景，**不构成确认性证据**。"]
+    summary["retest"] = retest
+
     (JDIR / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
     (JDIR / "summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("\n".join(lines))

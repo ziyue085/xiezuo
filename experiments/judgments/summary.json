@@ -100,5 +100,37 @@
       "judge4": "B"
     }
   },
-  "pairwise_agreement": "327/480"
+  "pairwise_agreement": "327/480",
+  "retest": [
+    {
+      "judge": "judge5",
+      "sid": "S01",
+      "winner": "A"
+    },
+    {
+      "judge": "judge5",
+      "sid": "S06",
+      "winner": "B2"
+    },
+    {
+      "judge": "judge5",
+      "sid": "S07",
+      "winner": "B2"
+    },
+    {
+      "judge": "judge6",
+      "sid": "S01",
+      "winner": "B2"
+    },
+    {
+      "judge": "judge6",
+      "sid": "S06",
+      "winner": "B2"
+    },
+    {
+      "judge": "judge6",
+      "sid": "S07",
+      "winner": "B2"
+    }
+  ]
 }
