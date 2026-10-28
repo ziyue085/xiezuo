@@ -11,10 +11,14 @@
 ## 一句话安装
 
 ```bash
-git clone --depth 1 https://github.com/ziyue085/xiezuo.git /tmp/xiezuo && mkdir -p ~/.workbuddy/skills && cp -r /tmp/xiezuo/literary-craft ~/.workbuddy/skills/ && rm -rf /tmp/xiezuo
+git clone --depth 1 https://github.com/ziyue085/xiezuo.git /tmp/xiezuo 2>/dev/null || git clone --depth 1 git@github-ziyue085:ziyue085/xiezuo.git /tmp/xiezuo; mkdir -p ~/.workbuddy/skills && cp -r /tmp/xiezuo/literary-craft ~/.workbuddy/skills/ && rm -rf /tmp/xiezuo
 ```
 
-装完重启会话，说"用 literary-craft 写个短篇"即可。Codex 用户把 `literary-craft/` 放进自己的 skills 目录即可，无第三方依赖。
+装完重启会话，说"用 literary-craft 写个短篇"即可。
+
+- 这行已在 Windows Git Bash 实测通过（HTTPS 不通时自动走 SSH）。
+- 若你的机器没有 `github-ziyue085` 这个 SSH 别名，把第二段的 `git@github-ziyue085:` 换成 `git@github.com:`；或者只保留 `git clone --depth 1 https://github.com/ziyue085/xiezuo.git /tmp/xiezuo`。
+- Codex 用户：把 `literary-craft/` 放进自己的 skills 目录（如 `~/.codex/skills/`）。无第三方依赖，只需 Python 3.8+ 跑体检脚本。
 
 ---
 

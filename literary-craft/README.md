@@ -9,12 +9,13 @@
 ## 安装（一行）
 
 ```bash
-git clone --depth 1 https://github.com/ziyue085/xiezuo.git /tmp/xiezuo && mkdir -p ~/.workbuddy/skills && cp -r /tmp/xiezuo/literary-craft ~/.workbuddy/skills/ && rm -rf /tmp/xiezuo
+git clone --depth 1 https://github.com/ziyue085/xiezuo.git /tmp/xiezuo 2>/dev/null || git clone --depth 1 git@github-ziyue085:ziyue085/xiezuo.git /tmp/xiezuo; mkdir -p ~/.workbuddy/skills && cp -r /tmp/xiezuo/literary-craft ~/.workbuddy/skills/ && rm -rf /tmp/xiezuo
 ```
 
-装完重启会话，说一句"用 literary-craft 写个短篇"即可触发。
+装完重启会话，说"用 literary-craft 写个短篇"即可触发。
 
-> Codex 用户：把 `literary-craft/` 整个目录放到你的 skills 目录（如 `~/.codex/skills/`）。本包只依赖 `SKILL.md` + Markdown + 一个 stdlib Python 脚本，无第三方依赖。
+> 已在 Windows Git Bash 实测：HTTPS 不通时自动回退到 SSH。没有 `github-ziyue085` 别名的话，把 `git@github-ziyue085:` 换成 `git@github.com:`。
+> Codex 用户：把 `literary-craft/` 整个目录放到你的 skills 目录（如 `~/.codex/skills/`）。本包只依赖 `SKILL.md` + Markdown + 一个 stdlib Python 脚本。
 
 ---
 
