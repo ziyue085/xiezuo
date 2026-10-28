@@ -1,0 +1,104 @@
+{
+  "overall": {
+    "B": 32,
+    "A": 8
+  },
+  "dims": {
+    "continue": {
+      "B": 32,
+      "A": 8
+    },
+    "character": {
+      "B": 35,
+      "A": 3,
+      "TIE": 2
+    },
+    "scene": {
+      "B": 35,
+      "A": 5
+    },
+    "plot": {
+      "B": 31,
+      "A": 9
+    },
+    "emotion": {
+      "B": 29,
+      "A": 11
+    },
+    "language": {
+      "B": 31,
+      "A": 9
+    },
+    "padding": {
+      "B": 31,
+      "A": 9
+    },
+    "compliance": {
+      "A": 17,
+      "B": 23
+    }
+  },
+  "per_scene": {
+    "S01": {
+      "judge1": "B",
+      "judge2": "B",
+      "judge3": "A",
+      "judge4": "A"
+    },
+    "S02": {
+      "judge1": "B",
+      "judge2": "B",
+      "judge3": "A",
+      "judge4": "B"
+    },
+    "S03": {
+      "judge1": "B",
+      "judge2": "B",
+      "judge3": "B",
+      "judge4": "B"
+    },
+    "S04": {
+      "judge1": "B",
+      "judge2": "B",
+      "judge3": "B",
+      "judge4": "B"
+    },
+    "S05": {
+      "judge1": "B",
+      "judge2": "B",
+      "judge3": "A",
+      "judge4": "B"
+    },
+    "S06": {
+      "judge1": "A",
+      "judge2": "A",
+      "judge3": "B",
+      "judge4": "B"
+    },
+    "S07": {
+      "judge1": "B",
+      "judge2": "B",
+      "judge3": "A",
+      "judge4": "A"
+    },
+    "S08": {
+      "judge1": "B",
+      "judge2": "B",
+      "judge3": "B",
+      "judge4": "B"
+    },
+    "S09": {
+      "judge1": "B",
+      "judge2": "B",
+      "judge3": "B",
+      "judge4": "B"
+    },
+    "S10": {
+      "judge1": "B",
+      "judge2": "B",
+      "judge3": "B",
+      "judge4": "B"
+    }
+  },
+  "pairwise_agreement": "327/480"
+}
