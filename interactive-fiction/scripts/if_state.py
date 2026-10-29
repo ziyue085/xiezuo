@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""interactive-fiction 状态管理（v0.1.1-beta，只用标准库）。
+"""interactive-fiction 状态管理（v0.1.2-beta，只用标准库）。
 
-相对 v0.1.0 的变化：
-- 故事内日历（年号/年/月/日 + day_index），跨年必须显式改元，年号越界直接报错
+相对 v0.1.1 的变化：
+- time 与 day_index 一律由日历推导，不再各走各的
+- 跨年自动改元（隆庆六年腊月 → 万历元年正月），不再只加年不减年号
+- 单独给 --year 也走年号校验，绕不过去
+- save 带「已结」一行，结掉的事不再被当成未决线重提
+
+v0.1.1 已有：
+- 故事内日历（年号/年/月/日 + day_index），年号越界直接报错
 - 未结事项带 owner / deadline_day / trigger / overdue 四项
 - 玩家持有物与已失去物分栏，禁止同一物品两边都有
 - turn 可把关键事件写进 log.md
@@ -14,10 +20,14 @@
   python if_state.py turn   --dir ... [--day-step 3] [--place 码头] [--beats "…"] [--event "…"]
   python if_state.py thread --dir ... --add "副本从哪来" --owner zhou --deadline-days 3 \
                             --trigger "司礼监来人" --overdue "副本被收缴"
+  python if_state.py thread --dir ... --close t1 --note "原件已交出"
   python if_state.py time   --dir ... --era 万历 --year 1 --month 1 --day 4
   python if_state.py check  --dir ... [--json]
   python if_state.py save   --dir ... [--max 600]
   python if_state.py load   --dir ...
+
+日历约定：每月 30 天，每年 12 个月；day_index 是故事内的累计天数，由日历推导。
+年号跨年按 ERA_NEXT 自动改元；未知年号（架空）只按连续日历累加。
 
 退出码：0 正常 / 1 检查发现问题 / 2 参数或文件错误。
 """
@@ -36,6 +46,9 @@ MIN_CAST = 3
 ERA_MAX = {"隆庆": 6, "万历": 48}
 ERA_NEXT = {"隆庆": ("万历", 1)}
 SAVE_MAX = 600
+MONTH_DAYS = 30
+MONTHS = 12
+CLOSED_IN_SAVE = 3
 
 WORLD_TPL = """# 世界 · {title}
 
@@ -83,7 +96,8 @@ STATE_TPL = {
     "tone": "冷硬",
     "severity": "标准",
     "turn": 0,
-    "calendar": {"era": "", "year": 1, "month": 1, "day": 1, "day_index": 1},
+    "calendar": {"era": "", "year": 1, "month": 1, "day": 1, "day_index": 1,
+                 "origin": {"era": "", "year": 1, "month": 1, "day": 1, "day_index": 1}},
     "story_time": "",
     "scene": {"place": "", "present": [], "focus": ""},
     "threads": [],
@@ -109,6 +123,12 @@ def load_state(d: Path) -> dict:
         sys.exit(f"找不到 {p}，先跑 init")
     st = read_json(p)
     st.setdefault("calendar", {"era": "", "year": 1, "month": 1, "day": 1, "day_index": 1})
+    st["calendar"].setdefault("day_index", 1)
+    st["calendar"].setdefault("origin", {
+        "era": st["calendar"].get("era", ""), "year": st["calendar"].get("year", 1),
+        "month": st["calendar"].get("month", 1), "day": st["calendar"].get("day", 1),
+        "day_index": int(st["calendar"].get("day_index", 1)),
+    })
     st.setdefault("player", {})
     st["player"].setdefault("holds", [])
     st["player"].setdefault("lost", [])
@@ -120,6 +140,58 @@ def fmt_time(cal: dict) -> str:
     y = cal.get("year", 1)
     ytxt = "元年" if y == 1 else f"{y}年"
     return f"{era}{ytxt}{cal.get('month',1)}月{cal.get('day',1)}日"
+
+
+def _ord(year: int, month: int, day: int) -> int:
+    """日期序号：每月 30 天、每年 12 月，不查真实历法。"""
+    return (int(year) - 1) * MONTHS * MONTH_DAYS + (int(month) - 1) * MONTH_DAYS + int(day)
+
+
+def days_between(o: dict, era: str, year: int, month: int, day: int) -> int:
+    """从 o（带 era/year/month/day）到目标日期的天数差。
+
+    同一年号或未知（架空）年号：按连续日历算。
+    已知年号换到下一个年号：旧年号按上限年跑满收尾。
+    """
+    o_era = o.get("era", "")
+    o_y, o_m, o_d = int(o.get("year", 1)), int(o.get("month", 1)), int(o.get("day", 1))
+    o_max = ERA_MAX.get(o_era)
+    if era == o_era or o_max is None:
+        return _ord(year, month, day) - _ord(o_y, o_m, o_d)
+    return ((o_max - o_y) * MONTHS * MONTH_DAYS
+            + (MONTHS - o_m) * MONTH_DAYS + (MONTH_DAYS - o_d)
+            + _ord(year, month, day))
+
+
+def advance_days(cal: dict, days: int) -> list[str]:
+    """推进日历：跨月进位、跨年进位，年号超上限时按 ERA_NEXT 自动改元。"""
+    notes: list[str] = []
+    cal["day"] = int(cal.get("day", 1)) + days
+    while cal["day"] > MONTH_DAYS:
+        cal["day"] -= MONTH_DAYS
+        cal["month"] = int(cal.get("month", 1)) + 1
+    while cal["month"] > MONTHS:
+        cal["month"] -= MONTHS
+        cal["year"] = int(cal.get("year", 1)) + 1
+        era = cal.get("era", "")
+        if era in ERA_MAX and cal["year"] > ERA_MAX[era]:
+            nxt = ERA_NEXT.get(era)
+            if nxt:
+                notes.append(f"跨年自动改元：{era} → {nxt[0]}元年")
+                cal["era"], cal["year"] = nxt[0], 1
+            else:
+                notes.append(f"年号已超出上限（{era}只有{ERA_MAX[era]}年），按架空继续")
+    return notes
+
+
+def expected_day_index(cal: dict) -> int | None:
+    """由 origin + 日历推出 day_index；老存档没有 origin 就返回 None。"""
+    o = cal.get("origin")
+    if not o:
+        return None
+    return int(o.get("day_index", 1)) + days_between(
+        o, cal.get("era", ""), int(cal.get("year", 1)),
+        int(cal.get("month", 1)), int(cal.get("day", 1)))
 
 
 # ------------------------------------------------------------------ init
@@ -139,7 +211,12 @@ def cmd_init(a) -> int:
         encoding="utf-8")
     st = json.loads(json.dumps(STATE_TPL))
     st.update({"title": a.title, "genre": a.genre, "tone": a.tone, "severity": a.severity})
-    st["calendar"].update({"era": a.era or "", "year": a.year or 1})
+    st["calendar"].update({"era": a.era or "", "year": a.year or 1, "day_index": 1})
+    st["calendar"]["origin"] = {
+        "era": st["calendar"]["era"], "year": st["calendar"]["year"],
+        "month": st["calendar"].get("month", 1), "day": st["calendar"].get("day", 1),
+        "day_index": 1,
+    }
     st["story_time"] = fmt_time(st["calendar"])
     write_json(d / "state.json", st)
     (d / "log.md").write_text("# 事件\n\n", encoding="utf-8")
@@ -167,16 +244,17 @@ def cmd_turn(a) -> int:
     n = st["turn"]
 
     cal = st["calendar"]
+    notes: list[str] = []
+    if a.day_step < 0:
+        print("错误：--day-step 不能为负；要往回走请用 time 直接设日期")
+        return 2
     if a.day_step:
-        cal["day_index"] = int(cal.get("day_index", 1)) + a.day_step
-        cal["day"] = int(cal.get("day", 1)) + a.day_step
-        while cal["day"] > 30:
-            cal["day"] -= 30
-            cal["month"] = int(cal.get("month", 1)) + 1
-        while cal["month"] > 12:
-            cal["month"] -= 12
-            cal["year"] = int(cal.get("year", 1)) + 1
+        notes = advance_days(cal, a.day_step)
+        exp = expected_day_index(cal)
+        cal["day_index"] = exp if exp is not None else int(cal.get("day_index", 1)) + a.day_step
         st["story_time"] = fmt_time(cal)
+        for note in notes:
+            print(note)
 
     if a.place:
         st["scene"]["place"] = a.place
@@ -242,8 +320,11 @@ def cmd_thread(a) -> int:
             if t["id"] == a.close or t["title"] == a.close:
                 t["status"] = "closed"
                 t["closed_at"] = st["turn"]
+                if a.note:
+                    t["close_note"] = a.note
                 write_json(d / "state.json", st)
-                print(f"已结 {t['id']}：{t['title']}")
+                print(f"已结 {t['id']}：{t['title']}"
+                      + (f"（{a.note}）" if a.note else ""))
                 return 0
         print(f"没找到：{a.close}")
         return 2
@@ -257,33 +338,63 @@ def cmd_time(a) -> int:
     d = _p(a.dir)
     st = load_state(d)
     cal = st["calendar"]
-    old_era = cal.get("era", "")
 
-    if a.era and a.era != old_era:
-        nxt = ERA_NEXT.get(old_era)
-        if not nxt:
-            print(f"警告：年号从「{old_era}」改为「{a.era}」，无改元规则，按架空处理")
-        elif a.era != nxt[0]:
-            print(f"错误：{old_era}之后应改元「{nxt[0]}」，不是「{a.era}」")
-            return 2
+    old = {"era": cal.get("era", ""), "year": int(cal.get("year", 1)),
+           "month": int(cal.get("month", 1)), "day": int(cal.get("day", 1))}
+    era = a.era or old["era"]
+    year = a.year if a.year is not None else old["year"]
+    month = a.month if a.month is not None else old["month"]
+    day = a.day if a.day is not None else old["day"]
 
-    if a.era in ERA_MAX and (a.year or 1) > ERA_MAX[a.era]:
-        nxt = ERA_NEXT.get(a.era)
-        hint = f"，次年应改元「{nxt[0]}元年」" if nxt else ""
-        print(f"错误：{a.era}只到第{ERA_MAX[a.era]}年{hint}")
+    if year < 1:
+        print("错误：年份不能小于 1")
         return 2
-
-    cal.update({"era": a.era or old_era, "year": a.year or cal.get("year", 1),
-                "month": a.month or 1, "day": a.day or 1})
-    if not (1 <= cal["month"] <= 12):
+    if not (1 <= month <= 12):
         print("错误：月份必须在 1–12")
         return 2
-    if not (1 <= cal["day"] <= 30):
+    if not (1 <= day <= 30):
         print("错误：日必须在 1–30（本模型每月按 30 天）")
         return 2
+
+    # 年号上限按"生效年号"校验——只给 --year 也绕不过去
+    if era in ERA_MAX and year > ERA_MAX[era]:
+        nxt = ERA_NEXT.get(era)
+        hint = f"，次年应改元「{nxt[0]}元年」" if nxt else ""
+        print(f"错误：{era}只到第{ERA_MAX[era]}年{hint}")
+        return 2
+
+    if era != old["era"]:
+        nxt = ERA_NEXT.get(old["era"])
+        max_y = ERA_MAX.get(old["era"])
+        if nxt:
+            if era != nxt[0]:
+                print(f"错误：{old['era']}之后应改元「{nxt[0]}」，不是「{era}」")
+                return 2
+            if max_y is not None and old["year"] < max_y:
+                print(f"错误：{old['era']}还没走到第{max_y}年，不能提前改元")
+                return 2
+            if year != 1:
+                print(f"错误：改元当年写元年，应为「{era}元年」，不是「{year}年」")
+                return 2
+        else:
+            print(f"警告：年号从「{old['era']}」改为「{era}」，无改元规则，按架空处理")
+
+    delta = days_between(old, era, year, month, day)
+    cand = dict(cal)
+    cand.update({"era": era, "year": year, "month": month, "day": day})
+    exp = expected_day_index(cand)
+    # 有 origin 就以日历为准确认，顺手修掉手改造成的不同步
+    new_index = exp if exp is not None else int(cal.get("day_index", 1)) + delta
+    if new_index < 1:
+        print(f"错误：时间不能早于故事开始（推算为第 {new_index} 天）")
+        return 2
+
+    cal.update({"era": era, "year": year, "month": month, "day": day,
+                "day_index": new_index})
     st["story_time"] = fmt_time(cal)
     write_json(d / "state.json", st)
-    print(f"时间已设为 {st['story_time']}（故事内第 {cal.get('day_index',1)} 天）")
+    sign = "+" if delta >= 0 else ""
+    print(f"时间已设为 {st['story_time']}（故事内第 {new_index} 天，较原来 {sign}{delta} 天）")
     return 0
 
 
@@ -345,6 +456,10 @@ def cmd_check(a) -> int:
         errs.append(f"月份越界：{cal.get('month')}")
     if not (1 <= int(cal.get("day", 1)) <= 30):
         errs.append(f"日期越界：{cal.get('day')}")
+    exp = expected_day_index(cal)
+    if exp is not None and exp != int(cal.get("day_index", 1)):
+        errs.append(f"day_index 与日历不同步：按日历应为第{exp}天，"
+                    f"实为第{cal.get('day_index')}天（用 time 重设一次即可对齐）")
 
     rp = d / "recent.md"
     nblocks = rp.read_text(encoding="utf-8").count("\n## ") if rp.exists() else 0
@@ -384,6 +499,9 @@ def cmd_save(a) -> int:
 
     present = [c for c in cast if c.get("with_player") or c.get("id") in st["scene"].get("present", [])]
     opens = [t for t in st.get("threads", []) if t.get("status") == "open"]
+    closed = [t for t in st.get("threads", []) if t.get("status") == "closed"]
+    closed.sort(key=lambda t: int(t.get("closed_at") or 0))
+    closed = closed[-CLOSED_IN_SAVE:]
 
     # 分层：必需 > 次要 > 可丢
     core = [
@@ -395,6 +513,10 @@ def cmd_save(a) -> int:
         "未结：" + ("；".join(
             f"{t['id']}{t['title']}（{t.get('owner','?')}·第{t.get('deadline_day','—')}天）"
             for t in opens) or "无"),
+        "已结：" + ("；".join(
+            f"{t['id']}{t['title']}（第{t.get('closed_at','?')}轮"
+            + (f"·{t['close_note']}" if t.get("close_note") else "") + "）"
+            for t in closed) or "无"),
         f"玩家：{st['player'].get('name','') or '（未命名）'}；"
         f"持有：{'、'.join(st['player'].get('holds', [])) or '无'}；"
         f"已失：{'、'.join(st['player'].get('lost', [])) or '无'}",
@@ -444,7 +566,8 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("thread"); p.add_argument("--dir", required=True)
     p.add_argument("--add"); p.add_argument("--owner"); p.add_argument("--deadline-days", type=int)
     p.add_argument("--trigger"); p.add_argument("--overdue")
-    p.add_argument("--close"); p.add_argument("--list", action="store_true")
+    p.add_argument("--close"); p.add_argument("--note")
+    p.add_argument("--list", action="store_true")
     p.set_defaults(func=cmd_thread)
 
     p = sub.add_parser("time"); p.add_argument("--dir", required=True)

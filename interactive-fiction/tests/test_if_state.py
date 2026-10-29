@@ -206,5 +206,95 @@ class TestSave(Base):
         self.assertIn("已裁剪", text)
 
 
+class TestCalendarSync(Base):
+    """v0.1.2 修的三件事：time 与 day_index 同步、跨年自动改元、--year 绕不过校验。"""
+
+    def _time(self, *args: str) -> int:
+        with contextlib.redirect_stdout(io.StringIO()):
+            return run("time", "--dir", str(self.dir), *args)
+
+    def _turn(self, *args: str) -> int:
+        with contextlib.redirect_stdout(io.StringIO()):
+            return run("turn", "--dir", str(self.dir), *args)
+
+    def _check(self) -> dict:
+        return run_json("check", "--dir", str(self.dir), "--json")
+
+    def test_time_moves_day_index(self) -> None:
+        self._init()
+        self.assertEqual(self._time("--month", "3", "--day", "12"), 0)
+        cal = self._state()["calendar"]
+        self.assertEqual(cal["day_index"], 72)          # 1 月 1 日算第 1 天，3 月 12 日是第 72 天
+        self.assertEqual(self._check()["errors"], [])
+
+    def test_time_keeps_month_when_only_day_given(self) -> None:
+        self._init()
+        self._time("--month", "3", "--day", "12")
+        self._time("--day", "15")
+        cal = self._state()["calendar"]
+        self.assertEqual((cal["month"], cal["day"]), (3, 15))
+
+    def test_year_alone_cannot_bypass_era_limit(self) -> None:
+        self._init()
+        self.assertEqual(self._time("--year", "7"), 2)
+        cal = self._state()["calendar"]
+        self.assertEqual((cal["era"], cal["year"]), ("隆庆", 6))
+
+    def test_turn_cross_year_auto_changes_era(self) -> None:
+        self._init()
+        self._time("--month", "12", "--day", "29")
+        self._turn("--day-step", "2")
+        st = self._state()
+        cal = st["calendar"]
+        self.assertEqual((cal["era"], cal["year"], cal["month"], cal["day"]),
+                         ("万历", 1, 1, 1))
+        self.assertIn("万历元年", st["story_time"])
+        self.assertNotIn("隆庆七", st["story_time"])
+
+    def test_era_change_requires_first_year(self) -> None:
+        self._init()
+        self._time("--month", "12", "--day", "30")
+        self.assertEqual(self._time("--era", "万历", "--year", "2"), 2)
+
+    def test_era_change_blocked_before_last_year(self) -> None:
+        self._init(year=4)
+        self.assertEqual(self._time("--era", "万历", "--year", "1"), 2)
+
+    def test_negative_day_step_rejected(self) -> None:
+        self._init()
+        self.assertEqual(self._turn("--day-step", "-1"), 2)
+
+    def test_check_flags_day_index_drift_and_time_fixes_it(self) -> None:
+        self._init()
+        self._time("--month", "3", "--day", "12")
+        s = self._state()
+        s["calendar"]["day_index"] = 999
+        (self.dir / "state.json").write_text(json.dumps(s, ensure_ascii=False), encoding="utf-8")
+        self.assertTrue(any("不同步" in e for e in self._check()["errors"]))
+        self._time("--month", "3", "--day", "12")      # 同一日期重设一次即对齐
+        self.assertEqual(self._state()["calendar"]["day_index"], 72)
+        self.assertEqual(self._check()["errors"], [])
+
+
+class TestSaveClosed(Base):
+    """已结的事必须进恢复卡，否则新会话会把它当成未决线重提。"""
+
+    def test_closed_thread_in_save(self) -> None:
+        self._init()
+        self._cast("a")
+        with contextlib.redirect_stdout(io.StringIO()):
+            run("thread", "--dir", str(self.dir), "--add", "取件期限", "--owner", "a",
+                "--deadline-days", "3", "--trigger", "司礼监来人", "--overdue", "副本被收缴")
+            run("turn", "--dir", str(self.dir), "--day-step", "5")
+            run("thread", "--dir", str(self.dir), "--close", "t1", "--note", "原件已交出")
+        with contextlib.redirect_stdout(io.StringIO()):
+            run("save", "--dir", str(self.dir))
+        text = (self.dir / "SAVE.md").read_text(encoding="utf-8")
+        self.assertIn("已结：", text)
+        self.assertIn("原件已交出", text)
+        self.assertIn("未结：无", text)
+        self.assertNotIn("取件期限（a·第", text)
+
+
 if __name__ == "__main__":
     unittest.main()
