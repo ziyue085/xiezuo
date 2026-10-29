@@ -3,7 +3,15 @@
 一个给 AI agent 用的中文文学写作与文学编辑 skill。
 目标不是"去 AI 味"，是**让一个故事、一段经历、一篇文章值得读下去**。
 
-> **状态**：v0.1.3，已完成三轮对照测试，**尚未通过外部文学质量验收**。未发布 Release。
+> **状态**：v0.2.0，已完成三轮对照测试，**尚未通过外部文学质量验收**。未发布 Release。
+
+## 仓库里有两个项目
+
+| 目录 | 是什么 | 给谁用 |
+|---|---|---|
+| `literary-craft/` | 中文文学写作与编辑 skill（六种模式，含测试与实验） | WorkBuddy / Codex 等 agent |
+| `interactive-fiction/` | 互动小说配置包：世界、人物、状态、存档，可粘进对话长期游玩 | Meta Muse（`muse/` 是交付物）；`SKILL.md` 供本地测试 |
+
 
 ---
 
@@ -49,8 +57,9 @@ npx skills add ziyue085/xiezuo --skill literary-craft -g -y
 | 历史写作编造引语 | 来源槽 / 核实状态 / 粒度随来源 / 制度断言看执行 |
 | 润色改过头 | 先抄事实清单，逐条对，多一条删掉 |
 | 喜剧写成温情 | 先定作品目标，让人物按利益行动 |
+| 对话小说写成"小说加对话" | 五张卡定世界，一问一答四种偏移，防重复五查 |
 
-五种模式各有一套不合格线。**规则全部带适用条件**，没有"必须""一律"式配额。
+六种模式各有一套不合格线。**规则全部带适用条件**，没有"必须""一律"式配额。
 
 ---
 
@@ -79,9 +88,9 @@ npx skills add ziyue085/xiezuo --skill literary-craft -g -y
 .
 ├── literary-craft/            # 可安装的 skill
 │   ├── SKILL.md               # 核心模型 + 路由（常驻，约 2.6k tokens）
-│   ├── references/            # 7 份按需加载
+│   ├── references/            # 8 份按需加载
 │   ├── scripts/craft_lint.py  # 表层体检，只提示不打分
-│   └── tests/                 # 33 项回归测试 + 三套场景
+│   └── tests/                 # 38 项回归测试 + 三套场景
 ├── install.sh                 # 暂存/校验/备份/替换/回滚
 ├── docs/
 │   ├── RESEARCH.md            # 六部参考作品的机制分析 + 证据分级
@@ -100,11 +109,12 @@ npx skills add ziyue085/xiezuo --skill literary-craft -g -y
 ## 复现
 
 ```bash
-cd literary-craft && python -m unittest discover -s tests -v   # 33 tests
+cd literary-craft && python -m unittest discover -s tests -v   # 38 tests
 cd .. && python experiments/tools/analyze.py                   # 第一轮指标
 python experiments/tools/round2.py analyze                     # 第二轮
 python experiments/tools/round3.py check                       # 第三轮硬约束
 python experiments/tools/round3.py aggregate                   # 第三轮盲评
+python literary-craft/scripts/craft_lint.py --file 草稿.txt --mode dialogue   # 对话型体检
 ```
 
 ---

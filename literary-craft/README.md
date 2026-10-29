@@ -1,6 +1,6 @@
 # literary-craft
 
-中文文学写作与编辑 skill。给 WorkBuddy / Codex 这类 agent 用。v0.1.3。
+中文文学写作与编辑 skill。给 WorkBuddy / Codex 这类 agent 用。v0.2.0。
 
 它解决的不是"句子好不好看"，而是**读者为什么还要读下一段**。
 
@@ -38,6 +38,7 @@ Codex 用户：把 `literary-craft/` 目录放进 skills 目录即可；只依�
 | **C 散文** | 写散文、随笔、游记 | `references/essay.md` |
 | **D 润色** | 改一段已有的文字 | `references/revise.md` |
 | **E 文学编辑** | 评一篇稿子、给修改意见 | `references/edit.md` |
+| **F 对话型** | 对话小说、一问一答、情景对话 | `references/dialogue.md` |
 
 语言层面的具体毛病 → `references/anti-patterns.md`（15 组病灶图鉴）
 节奏与句式 → `references/rhythm.md`
@@ -92,6 +93,7 @@ python scripts/craft_lint.py --file draft.txt              # 人类可读
 python scripts/craft_lint.py --file draft.txt --json       # 机器可读
 python scripts/craft_lint.py --file draft.txt --mode fiction
 python scripts/craft_lint.py --file draft.txt --mode history --era ancient
+python scripts/craft_lint.py --file draft.txt --mode dialogue
 ```
 
 退出码：`0` 无提示 / `1` 有提示（需人工判断）/ `2` 参数或文件错误。
@@ -105,7 +107,7 @@ python scripts/craft_lint.py --file draft.txt --mode history --era ancient
 ## 测试
 
 ```bash
-python -m unittest discover -s tests -v      # 33 项回归测试
+python -m unittest discover -s tests -v      # 38 项回归测试
 ```
 
 三轮对照实验见 `../docs/RESULTS.md`、`../docs/ROUND2.md`、`../docs/ROUND3.md`。
@@ -128,9 +130,9 @@ python -m unittest discover -s tests -v      # 33 项回归测试
 ```
 literary-craft/
 ├── SKILL.md
-├── references/            7 份按需加载的参考
+├── references/            8 份按需加载的参考
 ├── scripts/craft_lint.py  表层体检
-├── tests/                 33 项回归测试 + 三套场景
+├── tests/                 38 项回归测试 + 三套场景
 ├── README.md
 └── CHANGELOG.md
 ```

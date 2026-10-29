@@ -119,6 +119,62 @@ def cjk_len(s: str) -> int:
     return len(CJK_RE.findall(s))
 
 
+SCRIPT_LINE = re.compile(r"^[\s]*([\u4e00-\u9fff]{1,4})[：:]\s*(.+)$", re.M)
+
+
+def dialogue_metrics(text: str) -> dict:
+    """对话型专用：话轮、问句率、独白、重复短语。
+
+    两种写法都认：剧本式「名字：台词」，或散文式引号对话（“…”/「…」/"…"）。
+    """
+    pairs = SCRIPT_LINE.findall(text)
+    if len(pairs) >= 3:
+        turns = [t.strip() for _, t in pairs]
+        style = "script"
+    else:
+        turns = []
+        for pat in (r"“([^”]{1,400})”", r"「([^」]{1,400})」"):
+            turns += [m.strip() for m in re.findall(pat, text)]
+        if not turns:
+            turns = [m.strip() for m in re.findall(r'"([^"]{1,400})"', text)]
+        style = "quoted"
+
+    turns = [t for t in turns if cjk_len(t) >= 1]
+    lens = [cjk_len(t) for t in turns]
+    n = len(turns)
+    q = sum(1 for t in turns
+            if re.search(r"[？?]|吗|呢|什么|怎么|为什么|哪|多少|谁", t))
+    mono = sum(1 for L in lens if L >= 80)
+
+    # 重复短语：5 字窗口，且至少 3 个"实词"字，避免 "了一下" 这类虚词噪声
+    stop = set("的了着是在也就都还又我你他她它这那一个不没有和与把给过要会能")
+    counts: dict[str, int] = {}
+    for t in turns:
+        for g in {t[j:j + 5] for j in range(max(0, len(t) - 4))}:
+            if re.search(r"[，。！？、；：“”「」\sA-Za-z0-9]", g):
+                continue
+            if sum(1 for ch in g if ch not in stop) < 3:
+                continue
+            counts[g] = counts.get(g, 0) + 1
+    ranked = [g for g, c in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])) if c >= 3]
+    rep = []
+    for g in ranked:
+        if all(g not in r for r in rep):
+            rep.append(g)
+    rep = rep[:3]
+
+    return {
+        "turns": n,
+        "style": style,
+        "turn_mean": round(statistics.fmean(lens), 1) if lens else 0.0,
+        "turn_max": max(lens) if lens else 0,
+        "turn_sd": round(statistics.pstdev(lens), 1) if len(lens) > 1 else 0.0,
+        "question_pct": round(100 * q / n, 1) if n else 0.0,
+        "monologue": mono,
+        "repeat": "/".join(rep),
+    }
+
+
 def dialogue_chars(text: str) -> int:
     """对话字符数：中文引号 + 半角引号，混用时也各算一次、不重不漏。
 
@@ -211,6 +267,10 @@ def analyze(text: str, mode: str = "generic", era: str = "") -> dict:
 
     dlg = dialogue_chars(text)
     total_sent = len(sent_lens) or 1
+
+    dl: dict = {}
+    if mode == "dialogue":
+        dl = dialogue_metrics(text)
 
     m = {
         "chars": n_chars,
@@ -338,6 +398,24 @@ def analyze(text: str, mode: str = "generic", era: str = "") -> dict:
              "中文引号与英文直引号混用",
              "统一成中文引号；混用通常是分段生成拼接留下的痕迹。")
 
+    if mode == "dialogue" and dl:
+        if dl["turns"] >= 10 and dl["question_pct"] < 10:
+            flag("DLG_NO_QUESTION",
+                 f"共 {dl['turns']} 个话轮，问句只占 {dl['question_pct']}%",
+                 "一问一答里问句太少，容易变成轮流陈述。检查是否缺试探与反问。")
+        if dl["monologue"] >= 2 or (dl["turn_max"] >= 120 and dl["turn_max"] > 4 * max(dl["turn_mean"], 1)):
+            flag("DLG_MONOLOGUE",
+                 f"最长话轮 {dl['turn_max']} 字，超过 80 字的有 {dl['monologue']} 个",
+                 "长段独白会把对话变回叙述。拆成几轮，或用对方的插话切断它。")
+        if dl["turns"] >= 8 and dl["turn_sd"] < 4:
+            flag("DLG_FLAT_TURNS",
+                 f"话轮长度标准差 {dl['turn_sd']}，几乎等长",
+                 "交替太整齐，像采访。让一方只说一个字，一方说三行。")
+        if dl["repeat"]:
+            flag("DLG_REPEAT",
+                 f"同一短语在多个话轮里重复：{dl['repeat']}",
+                 "同一信息第二次出现要带新东西，否则删掉一处。")
+
     if mode == "fiction" and m["chars"] >= 300 and m["dialogue_pct"] < 3:
         flag("NO_DIALOGUE",
              f"对话占比仅 {m['dialogue_pct']}%",
@@ -352,6 +430,9 @@ def analyze(text: str, mode: str = "generic", era: str = "") -> dict:
 
     # 排序：稳定输出
     flags.sort(key=lambda x: x["code"])
+
+    if dl:
+        m.update({f"dlg_{k}": v for k, v in dl.items()})
 
     return {
         "file_meta": {"mode": mode, "era": era or "-"},
@@ -424,7 +505,7 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="中文文本表层体检（advisory）")
     ap.add_argument("--file", required=True, help="待检查文本（utf-8 / gbk）")
     ap.add_argument("--mode", default="generic",
-                    choices=["generic", "fiction", "history", "essay", "revise", "edit"])
+                    choices=["generic", "fiction", "history", "essay", "revise", "edit", "dialogue"])
     ap.add_argument("--era", default="", choices=["", "ancient"], help="历史题材的时代设定")
     ap.add_argument("--json", action="store_true", help="输出 JSON")
     args = ap.parse_args(argv)

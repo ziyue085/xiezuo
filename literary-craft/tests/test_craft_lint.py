@@ -27,6 +27,47 @@ def codes(text: str, mode: str = "generic", era: str = "") -> list[str]:
     return [f["code"] for f in cl.analyze(text, mode=mode, era=era)["flags"]]
 
 
+class TestDialogue(unittest.TestCase):
+    """对话型模式的专用指标。"""
+
+    def test_script_style_detected(self):
+        text = "\n".join([
+            "老陈：你什么时候到的",
+            "小李：昨天晚上",
+            "老陈：住哪儿",
+            "小李：站里",
+            "老陈：吃饭没有",
+            "小李：吃了",
+        ])
+        d = cl.dialogue_metrics(text)
+        self.assertEqual(d["style"], "script")
+        self.assertEqual(d["turns"], 6)
+
+    def test_quoted_style_detected(self):
+        text = "他说：“走吧。”她没动。“你不走我走。”门响了一声。"
+        d = cl.dialogue_metrics(text)
+        self.assertEqual(d["style"], "quoted")
+        self.assertEqual(d["turns"], 2)
+
+    def test_repeat_phrase_detected(self):
+        text = "\n".join([
+            "陈桂英：柜子三千八，实木的",
+            "刘洋：什么柜子三千八",
+            "陈桂英：柜子三千八，我儿子买的",
+            "刘洋：三千八太贵了",
+        ])
+        d = cl.dialogue_metrics(text)
+        self.assertIn("柜子三千八", d["repeat"])
+
+    def test_no_question_flag(self):
+        text = "\n".join([f"甲：这是第{i}句话，我在陈述事实。" for i in range(1, 13)])
+        self.assertIn("DLG_NO_QUESTION", codes(text, mode="dialogue"))
+
+    def test_flat_turns_flag(self):
+        text = "\n".join([f"甲：这是第{i}句长度差不多的话。" for i in range(1, 11)])
+        self.assertIn("DLG_FLAT_TURNS", codes(text, mode="dialogue"))
+
+
 class TestParsing(unittest.TestCase):
     def test_cjk_len_ignores_punct_and_latin(self):
         self.assertEqual(cl.cjk_len("他说：OK，走了。"), 4)
