@@ -9,7 +9,7 @@ description: >
   不覆盖纯问答、纯设定讨论、单篇创作（那些用 literary-craft 或直接回答）。
 license: MIT
 agent_created: true
-version: "0.1.0-beta"
+version: "0.1.1-beta"
 ---
 
 # Interactive Fiction · 让用户住进一个会自己运转的世界
